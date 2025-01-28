@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>KMB Yu Chui Court Bus ETA</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: #1a1a1a;
+            color: #e0e0e0;
+            margin: 0;  /* Remove default margins */
+            padding: 0;  /* Remove default padding */
+            min-height: 100vh;  /* Full viewport height */
+        }
+        .container-fluid {
+            padding: 0;  /* Remove container padding */
+            margin: 0;  /* Remove container margin */
+        }
+        h1 {
+            font-size: 3em;
+            margin: 0;  /* Remove margin */
+            padding: 20px;  /* Add padding instead */
+            color: #ffffff;
+            text-shadow: 0 0 10px rgba(255,255,255,0.3);
+            background: linear-gradient(to right, #2c3e50, #3498db);
+        }
+        .departure-board {
+            background: #000000;
+            padding: 0 20px 20px 20px;  /* Remove top padding */
+            margin: 0;  /* Remove margins */
+            max-width: none;  /* Remove max-width */
+            box-shadow: none;  /* Remove shadow */
+            border: none;  /* Remove border */
+            border-radius: 0;  /* Remove border radius */
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 20px;
+            min-height: calc(100vh - 140px);  /* Full height minus header and update bar */
+        }
+        .board-section {
+            border-right: 1px solid #333;
+            padding: 0 10px;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+        }
+        .board-section:last-child {
+            border-right: none;
+        }
+        .route-row {
+            border-bottom: 1px solid #222;
+            padding: 8px 0;
+            font-family: 'Courier New', monospace;
+            display: grid;
+            grid-template-columns: 100px 1fr 120px;
+            gap: 15px;
+            align-items: center;
+            min-height: 50px;
+        }
+        .route-row:last-child {
+            border-bottom: none;
+        }
+        .route-number {
+            font-size: 2em;
+            color: #ffd700;
+            font-weight: bold;
+            text-align: left;
+            text-shadow: 0 0 5px rgba(255,215,0,0.3);
+            padding-left: 10px;
+        }
+        .destination {
+            font-size: 1.6em;
+            color: #ffffff;
+            line-height: 1.2;
+            text-align: left;
+            padding: 0 10px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .eta-time {
+            color: #39ff14;
+            font-size: 1.8em;
+            text-align: right;
+            text-shadow: 0 0 5px rgba(57,255,20,0.3);
+            white-space: nowrap;
+            padding-right: 10px;
+        }
+        .stop-name {
+            color: #ffffff;
+            font-size: 2em;
+            padding: 15px;
+            background: none;  /* Remove background */
+            margin: 0 -20px 15px -20px;  /* Negative margin to extend full width */
+            border-radius: 0;  /* Remove border radius */
+            text-align: center;
+            text-shadow: 0 0 5px rgba(255,255,255,0.3);
+            box-shadow: none;  /* Remove shadow */
+            grid-column: 1 / -1;
+            border-bottom: 2px solid #333;  /* Add bottom border */
+        }
+        .column-headers {
+            position: sticky;  /* Make headers sticky */
+            top: 0;
+            background: #000;  /* Match background */
+            z-index: 1;  /* Ensure headers stay on top */
+            margin-top: 0;  /* Remove margin */
+            display: grid;
+            grid-template-columns: 100px 1fr 120px;
+            gap: 15px;
+            padding: 10px 0;
+            border-bottom: 2px solid #333;
+            color: #888;
+            font-size: 1.2em;
+            text-transform: uppercase;
+            font-weight: bold;
+        }
+        .header-route {
+            text-align: left;
+            padding-left: 10px;
+        }
+        .header-dest {
+            text-align: left;
+            padding-left: 10px;
+        }
+        .header-eta {
+            text-align: right;
+            padding-right: 10px;
+        }
+        #lastUpdate {
+            color: #888;
+            text-align: right;
+            padding: 15px 20px;
+            position: fixed;
+            bottom: 0;
+            right: 0;
+            background: rgba(0,0,0,0.9);
+            width: 100%;
+            border-top: 1px solid #333;
+            font-size: 1.5em;
+            backdrop-filter: blur(5px);
+            margin: 0;  /* Remove margin */
+        }
+        .blink {
+            animation: blink 1s linear infinite;
+        }
+        @keyframes blink {
+            50% { opacity: 0; }
+        }
+        .boards-container {
+            margin-bottom: 70px;
+        }
+        .text-center {
+            font-size: 1.8em;
+            color: #666;
+        }
+        .no-schedule {
+            color: #666;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <div class="container-fluid">
+        <h1 class="mt-4 text-center mb-4">KMB Yu Chui Court Bus ETA</h1>
+        <div class="departure-board">
+            <div class="stop-name">Yu Chui Court 愉翠苑</div>
+        </div>
+        <div id="lastUpdate"></div>
+    </div>
+
+    <script>
+        let updateInterval = null;
+
+        async function loadAndCombineETAs() {
+            const response = await fetch('/api/stops');
+            const stops = await response.json();
+            
+            // Start updating ETAs
+            updateCombinedETA(stops);
+            updateInterval = setInterval(() => updateCombinedETA(stops), 15000);
+        }
+
+        async function updateCombinedETA(stops) {
+            const allETAs = [];
+            
+            // Fetch ETAs for all stops
+            for (const stop of stops) {
+                const response = await fetch(`/api/eta/${stop.stop}`);
+                const data = await response.json();
+                if (data.etas) {
+                    allETAs.push(...data.etas);
+                }
+            }
+            
+            const boardDiv = document.querySelector('.departure-board');
+            // Keep the stop name
+            boardDiv.innerHTML = '<div class="stop-name">Yu Chui Court 愉翠苑</div>';
+            
+            if (allETAs.length > 0) {
+                // Group and sort ETAs as before
+                const routeGroups = {};
+                allETAs.forEach(eta => {
+                    const routeKey = `${eta.route}-${eta.dest_tc || eta.dest_en}`;
+                    if (!routeGroups[routeKey]) {
+                        routeGroups[routeKey] = [];
+                    }
+                    routeGroups[routeKey].push(eta);
+                });
+
+                const sortedRouteKeys = Object.keys(routeGroups).sort((a, b) => {
+                    const [routeA] = a.split('-');
+                    const [routeB] = b.split('-');
+                    return parseInt(routeA) - parseInt(routeB);
+                });
+
+                // Create 5 columns
+                const columns = Array(5).fill().map(() => []);
+                
+                // Distribute routes evenly across columns
+                sortedRouteKeys.forEach((routeKey, index) => {
+                    const columnIndex = index % 5;
+                    columns[columnIndex].push(routeKey);
+                });
+
+                // Create each column
+                columns.forEach((columnRoutes, index) => {
+                    const section = document.createElement('div');
+                    section.className = 'board-section';
+                    
+                    // Add column headers
+                    section.innerHTML = `
+                        <div class="column-headers">
+                            <div class="header-route">Route</div>
+                            <div class="header-dest">Destination</div>
+                            <div class="header-eta">Next Bus</div>
+                        </div>
+                    `;
+
+                    // Add routes for this column
+                    const routesHtml = columnRoutes.map(routeKey => {
+                        const etas = routeGroups[routeKey];
+                        etas.sort((a, b) => new Date(a.eta) - new Date(b.eta));
+                        const nextBus = etas[0];
+                        const minutes = formatTime(nextBus.eta);
+                        const isArriving = minutes === 'Arriving';
+                        const [route] = routeKey.split('-');
+                        
+                        return `
+                            <div class="route-row">
+                                <span class="route-number">${route}</span>
+                                <span class="destination">${nextBus.dest_tc || nextBus.dest_en}</span>
+                                <span class="eta-time ${isArriving ? 'blink' : ''}">${minutes}</span>
+                            </div>
+                        `;
+                    }).join('');
+
+                    section.innerHTML += routesHtml;
+                    boardDiv.appendChild(section);
+                });
+            } else {
+                boardDiv.innerHTML += '<div class="text-center">No buses scheduled</div>';
+            }
+
+            document.getElementById('lastUpdate').textContent = 
+                `Last updated: ${new Date().toLocaleTimeString()}`;
+        }
+
+        function formatTime(timeStr) {
+            if (!timeStr) return 'No ETA';
+            const eta = new Date(timeStr);
+            const now = new Date();
+            const diffMinutes = Math.round((eta - now) / 60000);
+            return diffMinutes <= 0 ? 'Arriving' : `${diffMinutes} mins`;
+        }
+
+        // Initialize when page loads
+        window.addEventListener('load', loadAndCombineETAs);
+    </script>
+</body>
+</html> 
