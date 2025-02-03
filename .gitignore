@@ -4,6 +4,8 @@
 # Google OAuth credentials
 client_secret*.json
 **/client_secret*.json
+service-account.json
+**/service-account.json
 
 # Python virtual environment
 venv/

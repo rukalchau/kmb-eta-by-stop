@@ -9,4 +9,4 @@ automatic_scaling:
   max_instances: 10
 
 env_variables:
-  FINNHUB_API_KEY: "your_finnhub_api_key" 
+  GOOGLE_APPLICATION_CREDENTIALS: "service-account.json" 

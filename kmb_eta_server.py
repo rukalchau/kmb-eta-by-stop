@@ -1,3 +1,4 @@
+import os
 from flask import Flask, jsonify, render_template
 from typing import Dict, List
 import requests
@@ -27,7 +28,7 @@ news_cache = []
 news_last_update = datetime.now() - timedelta(hours=1)  # Initialize to force first update
 price_lock = Lock()
 news_lock = Lock()
-FINNHUB_API_KEY = 'cug2b4hr01qo5mukdem0cug2b4hr01qo5mukdemg'
+FINNHUB_API_KEY = os.environ.get('FINNHUB_API_KEY')
 
 def fetch_kmb_stops() -> List[Dict]:
     """Fetch all KMB stops"""
